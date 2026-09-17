@@ -44,16 +44,19 @@ public final class AgentServiceClient {
   public func prompt(req: Agent_V1_PromptRequest) async throws -> AsyncThrowingStream<Agent_V1_PromptResponse, Error>
   { AsyncThrowingStream { cont in Task { do { let st = try await t.openStream(Request(url: "/agent.v1.AgentService/Prompt", body: try req.serializedData()))
     while let msg = await st.recv() { cont.yield(try Agent_V1_PromptResponse(serializedBytes: msg)) }
+    if let e = st.lastError() { throw e }
     cont.finish() } catch { cont.finish(throwing: error) } } } }
 
   public func watchSession(req: Agent_V1_WatchSessionRequest) async throws -> AsyncThrowingStream<Agent_V1_WatchSessionResponse, Error>
   { AsyncThrowingStream { cont in Task { do { let st = try await t.openStream(Request(url: "/agent.v1.AgentService/WatchSession", body: try req.serializedData()))
     while let msg = await st.recv() { cont.yield(try Agent_V1_WatchSessionResponse(serializedBytes: msg)) }
+    if let e = st.lastError() { throw e }
     cont.finish() } catch { cont.finish(throwing: error) } } } }
 
   public func watchSessions(req: Agent_V1_WatchSessionsRequest) async throws -> AsyncThrowingStream<Agent_V1_WatchSessionsResponse, Error>
   { AsyncThrowingStream { cont in Task { do { let st = try await t.openStream(Request(url: "/agent.v1.AgentService/WatchSessions", body: try req.serializedData()))
     while let msg = await st.recv() { cont.yield(try Agent_V1_WatchSessionsResponse(serializedBytes: msg)) }
+    if let e = st.lastError() { throw e }
     cont.finish() } catch { cont.finish(throwing: error) } } } }
 
   public func fork(req: Agent_V1_ForkRequest) async throws -> Agent_V1_ForkResponse {

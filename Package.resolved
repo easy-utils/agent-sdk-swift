@@ -10,6 +10,15 @@
       }
     },
     {
+      "identity" : "easy-rpc-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/easy-utils/easy-rpc-swift.git",
+      "state" : {
+        "revision" : "6d72a7c7c01dfaa131a23b62bf6448d0d88a0688",
+        "version" : "0.3.0"
+      }
+    },
+    {
       "identity" : "swift-algorithms",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-algorithms.git",

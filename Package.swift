@@ -6,7 +6,7 @@ let package = Package(
     platforms: [.macOS(.v12), .iOS(.v15)],
     products: [.library(name: "AgentSDK", targets: ["AgentSDK"])],
     dependencies: [
-        .package(url: "https://github.com/easy-utils/easy-rpc-swift.git", from: "0.2.0"),
+        .package(url: "https://github.com/easy-utils/easy-rpc-swift.git", from: "0.3.0"),
     ],
     targets: [
         .target(name: "AgentSDK", dependencies: [
