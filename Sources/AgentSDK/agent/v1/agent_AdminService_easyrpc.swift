@@ -4,53 +4,71 @@ import easyRpc
 public final class AdminServiceClient {
   private let t: any Transport
   public init(_ t: any Transport) { self.t = t }
+  public var lastTrailers: Headers = [:]
+  public var lastStream: (any Stream)?
 
-  public func listTenants(req: Agent_V1_ListTenantsRequest) async throws -> Agent_V1_ListTenantsResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AdminService/ListTenants", body: try req.serializedData()))
+  public func listTenants(req: Agent_V1_ListTenantsRequest, kind: String = "proto") async throws -> Agent_V1_ListTenantsResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AdminService/ListTenants", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_ListTenantsResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_ListTenantsResponse.self, kind)
   }
 
-  public func createTenant(req: Agent_V1_CreateTenantRequest) async throws -> Agent_V1_CreateTenantResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AdminService/CreateTenant", body: try req.serializedData()))
+  public func createTenant(req: Agent_V1_CreateTenantRequest, kind: String = "proto") async throws -> Agent_V1_CreateTenantResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AdminService/CreateTenant", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_CreateTenantResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_CreateTenantResponse.self, kind)
   }
 
-  public func updateTenant(req: Agent_V1_UpdateTenantRequest) async throws -> Agent_V1_UpdateTenantResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AdminService/UpdateTenant", body: try req.serializedData()))
+  public func updateTenant(req: Agent_V1_UpdateTenantRequest, kind: String = "proto") async throws -> Agent_V1_UpdateTenantResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AdminService/UpdateTenant", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_UpdateTenantResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_UpdateTenantResponse.self, kind)
   }
 
-  public func deleteTenant(req: Agent_V1_DeleteTenantRequest) async throws -> Agent_V1_DeleteTenantResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AdminService/DeleteTenant", body: try req.serializedData()))
+  public func deleteTenant(req: Agent_V1_DeleteTenantRequest, kind: String = "proto") async throws -> Agent_V1_DeleteTenantResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AdminService/DeleteTenant", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_DeleteTenantResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_DeleteTenantResponse.self, kind)
   }
 
-  public func issueTenantToken(req: Agent_V1_IssueTenantTokenRequest) async throws -> Agent_V1_IssueTenantTokenResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AdminService/IssueTenantToken", body: try req.serializedData()))
+  public func issueTenantToken(req: Agent_V1_IssueTenantTokenRequest, kind: String = "proto") async throws -> Agent_V1_IssueTenantTokenResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AdminService/IssueTenantToken", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_IssueTenantTokenResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_IssueTenantTokenResponse.self, kind)
   }
 
-  public func listTenantTokens(req: Agent_V1_ListTenantTokensRequest) async throws -> Agent_V1_ListTenantTokensResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AdminService/ListTenantTokens", body: try req.serializedData()))
+  public func listTenantTokens(req: Agent_V1_ListTenantTokensRequest, kind: String = "proto") async throws -> Agent_V1_ListTenantTokensResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AdminService/ListTenantTokens", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_ListTenantTokensResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_ListTenantTokensResponse.self, kind)
   }
 
-  public func revokeTenantToken(req: Agent_V1_RevokeTenantTokenRequest) async throws -> Agent_V1_RevokeTenantTokenResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AdminService/RevokeTenantToken", body: try req.serializedData()))
+  public func revokeTenantToken(req: Agent_V1_RevokeTenantTokenRequest, kind: String = "proto") async throws -> Agent_V1_RevokeTenantTokenResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AdminService/RevokeTenantToken", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_RevokeTenantTokenResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_RevokeTenantTokenResponse.self, kind)
   }
 
-  public func rotateTenantToken(req: Agent_V1_RotateTenantTokenRequest) async throws -> Agent_V1_RotateTenantTokenResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AdminService/RotateTenantToken", body: try req.serializedData()))
+  public func rotateTenantToken(req: Agent_V1_RotateTenantTokenRequest, kind: String = "proto") async throws -> Agent_V1_RotateTenantTokenResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AdminService/RotateTenantToken", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_RotateTenantTokenResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_RotateTenantTokenResponse.self, kind)
   }
 
 }

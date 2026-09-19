@@ -4,245 +4,316 @@ import easyRpc
 public final class AgentServiceClient {
   private let t: any Transport
   public init(_ t: any Transport) { self.t = t }
+  public var lastTrailers: Headers = [:]
+  public var lastStream: (any Stream)?
 
-  public func health(req: Agent_V1_HealthRequest) async throws -> Agent_V1_HealthResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/Health", body: try req.serializedData()))
+  public func health(req: Agent_V1_HealthRequest, kind: String = "proto") async throws -> Agent_V1_HealthResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/Health", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_HealthResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_HealthResponse.self, kind)
   }
 
-  public func listSessions(req: Agent_V1_ListSessionsRequest) async throws -> Agent_V1_ListSessionsResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/ListSessions", body: try req.serializedData()))
+  public func listSessions(req: Agent_V1_ListSessionsRequest, kind: String = "proto") async throws -> Agent_V1_ListSessionsResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/ListSessions", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_ListSessionsResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_ListSessionsResponse.self, kind)
   }
 
-  public func createSession(req: Agent_V1_CreateSessionRequest) async throws -> Agent_V1_CreateSessionResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/CreateSession", body: try req.serializedData()))
+  public func createSession(req: Agent_V1_CreateSessionRequest, kind: String = "proto") async throws -> Agent_V1_CreateSessionResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/CreateSession", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_CreateSessionResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_CreateSessionResponse.self, kind)
   }
 
-  public func getSession(req: Agent_V1_GetSessionRequest) async throws -> Agent_V1_GetSessionResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/GetSession", body: try req.serializedData()))
+  public func getSession(req: Agent_V1_GetSessionRequest, kind: String = "proto") async throws -> Agent_V1_GetSessionResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/GetSession", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_GetSessionResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_GetSessionResponse.self, kind)
   }
 
-  public func deleteSession(req: Agent_V1_DeleteSessionRequest) async throws -> Agent_V1_DeleteSessionResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/DeleteSession", body: try req.serializedData()))
+  public func deleteSession(req: Agent_V1_DeleteSessionRequest, kind: String = "proto") async throws -> Agent_V1_DeleteSessionResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/DeleteSession", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_DeleteSessionResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_DeleteSessionResponse.self, kind)
   }
 
-  public func listMessages(req: Agent_V1_ListMessagesRequest) async throws -> Agent_V1_ListMessagesResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/ListMessages", body: try req.serializedData()))
+  public func listMessages(req: Agent_V1_ListMessagesRequest, kind: String = "proto") async throws -> Agent_V1_ListMessagesResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/ListMessages", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_ListMessagesResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_ListMessagesResponse.self, kind)
   }
 
-  public func prompt(req: Agent_V1_PromptRequest) async throws -> AsyncThrowingStream<Agent_V1_PromptResponse, Error>
-  { AsyncThrowingStream { cont in Task { do { let st = try await t.openStream(Request(url: "/agent.v1.AgentService/Prompt", body: try req.serializedData()))
-    while let msg = await st.recv() { cont.yield(try Agent_V1_PromptResponse(serializedBytes: msg)) }
+  public func prompt(req: Agent_V1_PromptRequest, kind: String = "proto") async throws -> AsyncThrowingStream<Agent_V1_PromptResponse, Error>
+  { AsyncThrowingStream { cont in Task { do { let ct = contentTypeFor(true, kind); let st = try await t.openStream(Request(url: "/agent.v1.AgentService/Prompt", headers: ["content-type": [ct]], body: frame(try encodeMsg(req, kind))))
+    self.lastStream = st
+    while let msg = await st.recv() { cont.yield(try decodeMsg(msg, Agent_V1_PromptResponse.self, kind)) }
     if let e = st.lastError() { throw e }
     cont.finish() } catch { cont.finish(throwing: error) } } } }
 
-  public func watchSession(req: Agent_V1_WatchSessionRequest) async throws -> AsyncThrowingStream<Agent_V1_WatchSessionResponse, Error>
-  { AsyncThrowingStream { cont in Task { do { let st = try await t.openStream(Request(url: "/agent.v1.AgentService/WatchSession", body: try req.serializedData()))
-    while let msg = await st.recv() { cont.yield(try Agent_V1_WatchSessionResponse(serializedBytes: msg)) }
+  public func watchSession(req: Agent_V1_WatchSessionRequest, kind: String = "proto") async throws -> AsyncThrowingStream<Agent_V1_WatchSessionResponse, Error>
+  { AsyncThrowingStream { cont in Task { do { let ct = contentTypeFor(true, kind); let st = try await t.openStream(Request(url: "/agent.v1.AgentService/WatchSession", headers: ["content-type": [ct]], body: frame(try encodeMsg(req, kind))))
+    self.lastStream = st
+    while let msg = await st.recv() { cont.yield(try decodeMsg(msg, Agent_V1_WatchSessionResponse.self, kind)) }
     if let e = st.lastError() { throw e }
     cont.finish() } catch { cont.finish(throwing: error) } } } }
 
-  public func watchSessions(req: Agent_V1_WatchSessionsRequest) async throws -> AsyncThrowingStream<Agent_V1_WatchSessionsResponse, Error>
-  { AsyncThrowingStream { cont in Task { do { let st = try await t.openStream(Request(url: "/agent.v1.AgentService/WatchSessions", body: try req.serializedData()))
-    while let msg = await st.recv() { cont.yield(try Agent_V1_WatchSessionsResponse(serializedBytes: msg)) }
+  public func watchSessions(req: Agent_V1_WatchSessionsRequest, kind: String = "proto") async throws -> AsyncThrowingStream<Agent_V1_WatchSessionsResponse, Error>
+  { AsyncThrowingStream { cont in Task { do { let ct = contentTypeFor(true, kind); let st = try await t.openStream(Request(url: "/agent.v1.AgentService/WatchSessions", headers: ["content-type": [ct]], body: frame(try encodeMsg(req, kind))))
+    self.lastStream = st
+    while let msg = await st.recv() { cont.yield(try decodeMsg(msg, Agent_V1_WatchSessionsResponse.self, kind)) }
     if let e = st.lastError() { throw e }
     cont.finish() } catch { cont.finish(throwing: error) } } } }
 
-  public func fork(req: Agent_V1_ForkRequest) async throws -> Agent_V1_ForkResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/Fork", body: try req.serializedData()))
+  public func fork(req: Agent_V1_ForkRequest, kind: String = "proto") async throws -> Agent_V1_ForkResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/Fork", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_ForkResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_ForkResponse.self, kind)
   }
 
-  public func rename(req: Agent_V1_RenameRequest) async throws -> Agent_V1_RenameResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/Rename", body: try req.serializedData()))
+  public func rename(req: Agent_V1_RenameRequest, kind: String = "proto") async throws -> Agent_V1_RenameResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/Rename", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_RenameResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_RenameResponse.self, kind)
   }
 
-  public func setModel(req: Agent_V1_SetModelRequest) async throws -> Agent_V1_SetModelResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/SetModel", body: try req.serializedData()))
+  public func setModel(req: Agent_V1_SetModelRequest, kind: String = "proto") async throws -> Agent_V1_SetModelResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/SetModel", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_SetModelResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_SetModelResponse.self, kind)
   }
 
-  public func undo(req: Agent_V1_UndoRequest) async throws -> Agent_V1_UndoResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/Undo", body: try req.serializedData()))
+  public func undo(req: Agent_V1_UndoRequest, kind: String = "proto") async throws -> Agent_V1_UndoResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/Undo", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_UndoResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_UndoResponse.self, kind)
   }
 
-  public func state(req: Agent_V1_StateRequest) async throws -> Agent_V1_StateResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/State", body: try req.serializedData()))
+  public func state(req: Agent_V1_StateRequest, kind: String = "proto") async throws -> Agent_V1_StateResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/State", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_StateResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_StateResponse.self, kind)
   }
 
-  public func mailbox(req: Agent_V1_MailboxRequest) async throws -> Agent_V1_MailboxResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/Mailbox", body: try req.serializedData()))
+  public func mailbox(req: Agent_V1_MailboxRequest, kind: String = "proto") async throws -> Agent_V1_MailboxResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/Mailbox", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_MailboxResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_MailboxResponse.self, kind)
   }
 
-  public func updateSettings(req: Agent_V1_UpdateSettingsRequest) async throws -> Agent_V1_UpdateSettingsResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/UpdateSettings", body: try req.serializedData()))
+  public func updateSettings(req: Agent_V1_UpdateSettingsRequest, kind: String = "proto") async throws -> Agent_V1_UpdateSettingsResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/UpdateSettings", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_UpdateSettingsResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_UpdateSettingsResponse.self, kind)
   }
 
-  public func interrupt(req: Agent_V1_InterruptRequest) async throws -> Agent_V1_InterruptResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/Interrupt", body: try req.serializedData()))
+  public func interrupt(req: Agent_V1_InterruptRequest, kind: String = "proto") async throws -> Agent_V1_InterruptResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/Interrupt", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_InterruptResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_InterruptResponse.self, kind)
   }
 
-  public func compact(req: Agent_V1_CompactRequest) async throws -> Agent_V1_CompactResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/Compact", body: try req.serializedData()))
+  public func compact(req: Agent_V1_CompactRequest, kind: String = "proto") async throws -> Agent_V1_CompactResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/Compact", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_CompactResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_CompactResponse.self, kind)
   }
 
-  public func listProviders(req: Agent_V1_ListProvidersRequest) async throws -> Agent_V1_ListProvidersResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/ListProviders", body: try req.serializedData()))
+  public func listProviders(req: Agent_V1_ListProvidersRequest, kind: String = "proto") async throws -> Agent_V1_ListProvidersResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/ListProviders", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_ListProvidersResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_ListProvidersResponse.self, kind)
   }
 
-  public func listProvidersCatalog(req: Agent_V1_ListProvidersCatalogRequest) async throws -> Agent_V1_ListProvidersCatalogResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/ListProvidersCatalog", body: try req.serializedData()))
+  public func listProvidersCatalog(req: Agent_V1_ListProvidersCatalogRequest, kind: String = "proto") async throws -> Agent_V1_ListProvidersCatalogResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/ListProvidersCatalog", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_ListProvidersCatalogResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_ListProvidersCatalogResponse.self, kind)
   }
 
-  public func registerProvider(req: Agent_V1_RegisterProviderRequest) async throws -> Agent_V1_RegisterProviderResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/RegisterProvider", body: try req.serializedData()))
+  public func registerProvider(req: Agent_V1_RegisterProviderRequest, kind: String = "proto") async throws -> Agent_V1_RegisterProviderResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/RegisterProvider", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_RegisterProviderResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_RegisterProviderResponse.self, kind)
   }
 
-  public func discoverGatewayModels(req: Agent_V1_DiscoverGatewayModelsRequest) async throws -> Agent_V1_DiscoverGatewayModelsResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/DiscoverGatewayModels", body: try req.serializedData()))
+  public func deleteProvider(req: Agent_V1_DeleteProviderRequest, kind: String = "proto") async throws -> Agent_V1_DeleteProviderResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/DeleteProvider", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_DiscoverGatewayModelsResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_DeleteProviderResponse.self, kind)
   }
 
-  public func deleteProvider(req: Agent_V1_DeleteProviderRequest) async throws -> Agent_V1_DeleteProviderResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/DeleteProvider", body: try req.serializedData()))
+  public func testProvider(req: Agent_V1_TestProviderRequest, kind: String = "proto") async throws -> Agent_V1_TestProviderResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/TestProvider", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_DeleteProviderResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_TestProviderResponse.self, kind)
   }
 
-  public func testProvider(req: Agent_V1_TestProviderRequest) async throws -> Agent_V1_TestProviderResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/TestProvider", body: try req.serializedData()))
+  public func listModels(req: Agent_V1_ListModelsRequest, kind: String = "proto") async throws -> Agent_V1_ListModelsResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/ListModels", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_TestProviderResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_ListModelsResponse.self, kind)
   }
 
-  public func listModels(req: Agent_V1_ListModelsRequest) async throws -> Agent_V1_ListModelsResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/ListModels", body: try req.serializedData()))
+  public func listPresets(req: Agent_V1_ListPresetsRequest, kind: String = "proto") async throws -> Agent_V1_ListPresetsResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/ListPresets", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_ListModelsResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_ListPresetsResponse.self, kind)
   }
 
-  public func listPresets(req: Agent_V1_ListPresetsRequest) async throws -> Agent_V1_ListPresetsResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/ListPresets", body: try req.serializedData()))
+  public func upsertPreset(req: Agent_V1_UpsertPresetRequest, kind: String = "proto") async throws -> Agent_V1_UpsertPresetResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/UpsertPreset", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_ListPresetsResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_UpsertPresetResponse.self, kind)
   }
 
-  public func upsertPreset(req: Agent_V1_UpsertPresetRequest) async throws -> Agent_V1_UpsertPresetResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/UpsertPreset", body: try req.serializedData()))
+  public func deletePreset(req: Agent_V1_DeletePresetRequest, kind: String = "proto") async throws -> Agent_V1_DeletePresetResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/DeletePreset", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_UpsertPresetResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_DeletePresetResponse.self, kind)
   }
 
-  public func deletePreset(req: Agent_V1_DeletePresetRequest) async throws -> Agent_V1_DeletePresetResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/DeletePreset", body: try req.serializedData()))
+  public func previewPreset(req: Agent_V1_PreviewPresetRequest, kind: String = "proto") async throws -> Agent_V1_PreviewPresetResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/PreviewPreset", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_DeletePresetResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_PreviewPresetResponse.self, kind)
   }
 
-  public func previewPreset(req: Agent_V1_PreviewPresetRequest) async throws -> Agent_V1_PreviewPresetResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/PreviewPreset", body: try req.serializedData()))
+  public func getConfig(req: Agent_V1_GetConfigRequest, kind: String = "proto") async throws -> Agent_V1_GetConfigResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/GetConfig", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_PreviewPresetResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_GetConfigResponse.self, kind)
   }
 
-  public func getConfig(req: Agent_V1_GetConfigRequest) async throws -> Agent_V1_GetConfigResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/GetConfig", body: try req.serializedData()))
+  public func setConfig(req: Agent_V1_SetConfigRequest, kind: String = "proto") async throws -> Agent_V1_SetConfigResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/SetConfig", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_GetConfigResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_SetConfigResponse.self, kind)
   }
 
-  public func setConfig(req: Agent_V1_SetConfigRequest) async throws -> Agent_V1_SetConfigResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/SetConfig", body: try req.serializedData()))
+  public func listTools(req: Agent_V1_ListToolsRequest, kind: String = "proto") async throws -> Agent_V1_ListToolsResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/ListTools", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_SetConfigResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_ListToolsResponse.self, kind)
   }
 
-  public func listTools(req: Agent_V1_ListToolsRequest) async throws -> Agent_V1_ListToolsResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/ListTools", body: try req.serializedData()))
+  public func getToolConfig(req: Agent_V1_GetToolConfigRequest, kind: String = "proto") async throws -> Agent_V1_GetToolConfigResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/GetToolConfig", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_ListToolsResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_GetToolConfigResponse.self, kind)
   }
 
-  public func getToolConfig(req: Agent_V1_GetToolConfigRequest) async throws -> Agent_V1_GetToolConfigResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/GetToolConfig", body: try req.serializedData()))
+  public func setToolConfig(req: Agent_V1_SetToolConfigRequest, kind: String = "proto") async throws -> Agent_V1_SetToolConfigResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/SetToolConfig", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_GetToolConfigResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_SetToolConfigResponse.self, kind)
   }
 
-  public func setToolConfig(req: Agent_V1_SetToolConfigRequest) async throws -> Agent_V1_SetToolConfigResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/SetToolConfig", body: try req.serializedData()))
+  public func setExtensionConfig(req: Agent_V1_SetExtensionConfigRequest, kind: String = "proto") async throws -> Agent_V1_SetExtensionConfigResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/SetExtensionConfig", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_SetToolConfigResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_SetExtensionConfigResponse.self, kind)
   }
 
-  public func setExtensionConfig(req: Agent_V1_SetExtensionConfigRequest) async throws -> Agent_V1_SetExtensionConfigResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/SetExtensionConfig", body: try req.serializedData()))
+  public func uploadFile(req: Agent_V1_UploadFileRequest, kind: String = "proto") async throws -> Agent_V1_UploadFileResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/UploadFile", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_SetExtensionConfigResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_UploadFileResponse.self, kind)
   }
 
-  public func uploadFile(req: Agent_V1_UploadFileRequest) async throws -> Agent_V1_UploadFileResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/UploadFile", body: try req.serializedData()))
+  public func ingestFile(req: Agent_V1_IngestFileRequest, kind: String = "proto") async throws -> Agent_V1_IngestFileResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/IngestFile", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_UploadFileResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_IngestFileResponse.self, kind)
   }
 
-  public func ingestFile(req: Agent_V1_IngestFileRequest) async throws -> Agent_V1_IngestFileResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/IngestFile", body: try req.serializedData()))
+  public func getFile(req: Agent_V1_GetFileRequest, kind: String = "proto") async throws -> Agent_V1_GetFileResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/GetFile", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_IngestFileResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_GetFileResponse.self, kind)
   }
 
-  public func getFile(req: Agent_V1_GetFileRequest) async throws -> Agent_V1_GetFileResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/GetFile", body: try req.serializedData()))
+  public func getFileMeta(req: Agent_V1_GetFileMetaRequest, kind: String = "proto") async throws -> Agent_V1_GetFileMetaResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/GetFileMeta", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_GetFileResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_GetFileMetaResponse.self, kind)
   }
 
-  public func getFileMeta(req: Agent_V1_GetFileMetaRequest) async throws -> Agent_V1_GetFileMetaResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/GetFileMeta", body: try req.serializedData()))
+  public func getAgentConfig(req: Agent_V1_GetAgentConfigRequest, kind: String = "proto") async throws -> Agent_V1_GetAgentConfigResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/GetAgentConfig", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
     if let e = res.error { throw e }
-    return try Agent_V1_GetFileMetaResponse(serializedBytes: res.body)
-  }
-
-  public func getAgentConfig(req: Agent_V1_GetAgentConfigRequest) async throws -> Agent_V1_GetAgentConfigResponse {
-    let res = try await t.send(Request(url: "/agent.v1.AgentService/GetAgentConfig", body: try req.serializedData()))
-    if let e = res.error { throw e }
-    return try Agent_V1_GetAgentConfigResponse(serializedBytes: res.body)
+    return try decodeMsg(res.body, Agent_V1_GetAgentConfigResponse.self, kind)
   }
 
 }
