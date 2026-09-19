@@ -508,7 +508,10 @@ public nonisolated struct Agent_V1_WatchSessionsResponse: Sendable {
   public init() {}
 }
 
-/// A file reference (attachment).
+/// A file reference (attachment). `mime` is NOT carried: the agent DERIVES the
+/// content type from the bytes at ingest time (magic-byte sniff + media probe)
+/// and resolves it from the stored record, so a caller can neither mislabel a
+/// file nor need a content-type library of its own.
 public nonisolated struct Agent_V1_FileRef: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -517,8 +520,6 @@ public nonisolated struct Agent_V1_FileRef: Sendable {
   public var code: String = String()
 
   public var name: String = String()
-
-  public var mime: String = String()
 
   public var size: Int32 = 0
 
@@ -1582,6 +1583,8 @@ public nonisolated struct Agent_V1_UploadFileRequest: Sendable {
   fileprivate var _file: Agent_V1_FileRef? = nil
 }
 
+/// `mime` is the SERVER-DERIVED content type of the stored file (see
+/// IngestFileResponse); the caller never supplies one.
 public nonisolated struct Agent_V1_UploadFileResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -1590,6 +1593,8 @@ public nonisolated struct Agent_V1_UploadFileResponse: Sendable {
   public var ok: Bool = false
 
   public var code: String = String()
+
+  public var mime: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1608,13 +1613,14 @@ public nonisolated struct Agent_V1_IngestFileRequest: Sendable {
 
   public var name: String = String()
 
-  public var mime: String = String()
-
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 }
 
+/// `mime` is the content type the agent DERIVED from the bytes (magic-byte
+/// sniff, with an ffprobe refinement for media). It is authoritative: clients
+/// render from it rather than asserting their own guess.
 public nonisolated struct Agent_V1_IngestFileResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -1623,6 +1629,8 @@ public nonisolated struct Agent_V1_IngestFileResponse: Sendable {
   public var ok: Bool = false
 
   public var code: String = String()
+
+  public var mime: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1669,6 +1677,13 @@ public nonisolated struct Agent_V1_GetFileMetaRequest: Sendable {
   public init() {}
 }
 
+/// File metadata: identity + server-derived media facts. The optional media
+/// fields are populated (asynchronously, best-effort) by the agent's media
+/// probe when the mime is a supported image/video/audio type; they are absent
+/// (field presence unset) for files that are not media or were probed before
+/// the feature existed. `thumb_code` is itself a canonical file code (the
+/// thumbnail is a content-addressed file), so a client fetches it through the
+/// normal GetFile/GetFileStream path.
 public nonisolated struct Agent_V1_GetFileMetaResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -1679,6 +1694,81 @@ public nonisolated struct Agent_V1_GetFileMetaResponse: Sendable {
   public var mime: String = String()
 
   public var size: Int32 = 0
+
+  public var width: Int32 {
+    get {_width ?? 0}
+    set {_width = newValue}
+  }
+  /// Returns true if `width` has been explicitly set.
+  public var hasWidth: Bool {self._width != nil}
+  /// Clears the value of `width`. Subsequent reads from it will return its default value.
+  public mutating func clearWidth() {self._width = nil}
+
+  public var height: Int32 {
+    get {_height ?? 0}
+    set {_height = newValue}
+  }
+  /// Returns true if `height` has been explicitly set.
+  public var hasHeight: Bool {self._height != nil}
+  /// Clears the value of `height`. Subsequent reads from it will return its default value.
+  public mutating func clearHeight() {self._height = nil}
+
+  public var durationMs: Int64 {
+    get {_durationMs ?? 0}
+    set {_durationMs = newValue}
+  }
+  /// Returns true if `durationMs` has been explicitly set.
+  public var hasDurationMs: Bool {self._durationMs != nil}
+  /// Clears the value of `durationMs`. Subsequent reads from it will return its default value.
+  public mutating func clearDurationMs() {self._durationMs = nil}
+
+  public var thumbCode: String {
+    get {_thumbCode ?? String()}
+    set {_thumbCode = newValue}
+  }
+  /// Returns true if `thumbCode` has been explicitly set.
+  public var hasThumbCode: Bool {self._thumbCode != nil}
+  /// Clears the value of `thumbCode`. Subsequent reads from it will return its default value.
+  public mutating func clearThumbCode() {self._thumbCode = nil}
+
+  public var thumbhash: String {
+    get {_thumbhash ?? String()}
+    set {_thumbhash = newValue}
+  }
+  /// Returns true if `thumbhash` has been explicitly set.
+  public var hasThumbhash: Bool {self._thumbhash != nil}
+  /// Clears the value of `thumbhash`. Subsequent reads from it will return its default value.
+  public mutating func clearThumbhash() {self._thumbhash = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _width: Int32? = nil
+  fileprivate var _height: Int32? = nil
+  fileprivate var _durationMs: Int64? = nil
+  fileprivate var _thumbCode: String? = nil
+  fileprivate var _thumbhash: String? = nil
+}
+
+/// GetFileStream streams a file's bytes in order (chunk by chunk). It is the
+/// streaming counterpart of GetFile: small files still round-trip fine, while
+/// large media is delivered progressively so a client can start rendering
+/// before the whole object has arrived. Without a `Range` API this is a
+/// forward-only stream (no seek); `offset` is the byte offset of `data` in the
+/// file and `total` its full length, so a client can compute progress.
+public nonisolated struct Agent_V1_FileChunk: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var data: Data = Data()
+
+  public var offset: UInt64 = 0
+
+  public var total: UInt64 = 0
+
+  public var last: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -2953,7 +3043,7 @@ nonisolated extension Agent_V1_WatchSessionsResponse: SwiftProtobuf.Message, Swi
 
 nonisolated extension Agent_V1_FileRef: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".FileRef"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}code\0\u{1}name\0\u{1}mime\0\u{1}size\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}code\0\u{1}name\0\u{2}\u{2}size\0\u{c}\u{3}\u{1}")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2963,7 +3053,6 @@ nonisolated extension Agent_V1_FileRef: SwiftProtobuf.Message, SwiftProtobuf._Me
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.code) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.name) }()
-      case 3: try { try decoder.decodeSingularStringField(value: &self.mime) }()
       case 4: try { try decoder.decodeSingularInt32Field(value: &self.size) }()
       default: break
       }
@@ -2977,9 +3066,6 @@ nonisolated extension Agent_V1_FileRef: SwiftProtobuf.Message, SwiftProtobuf._Me
     if !self.name.isEmpty {
       try visitor.visitSingularStringField(value: self.name, fieldNumber: 2)
     }
-    if !self.mime.isEmpty {
-      try visitor.visitSingularStringField(value: self.mime, fieldNumber: 3)
-    }
     if self.size != 0 {
       try visitor.visitSingularInt32Field(value: self.size, fieldNumber: 4)
     }
@@ -2989,7 +3075,6 @@ nonisolated extension Agent_V1_FileRef: SwiftProtobuf.Message, SwiftProtobuf._Me
   public static func ==(lhs: Agent_V1_FileRef, rhs: Agent_V1_FileRef) -> Bool {
     if lhs.code != rhs.code {return false}
     if lhs.name != rhs.name {return false}
-    if lhs.mime != rhs.mime {return false}
     if lhs.size != rhs.size {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -5210,7 +5295,7 @@ nonisolated extension Agent_V1_UploadFileRequest: SwiftProtobuf.Message, SwiftPr
 
 nonisolated extension Agent_V1_UploadFileResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UploadFileResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}ok\0\u{1}code\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}ok\0\u{1}code\0\u{1}mime\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -5220,6 +5305,7 @@ nonisolated extension Agent_V1_UploadFileResponse: SwiftProtobuf.Message, SwiftP
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularBoolField(value: &self.ok) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.code) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.mime) }()
       default: break
       }
     }
@@ -5232,12 +5318,16 @@ nonisolated extension Agent_V1_UploadFileResponse: SwiftProtobuf.Message, SwiftP
     if !self.code.isEmpty {
       try visitor.visitSingularStringField(value: self.code, fieldNumber: 2)
     }
+    if !self.mime.isEmpty {
+      try visitor.visitSingularStringField(value: self.mime, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Agent_V1_UploadFileResponse, rhs: Agent_V1_UploadFileResponse) -> Bool {
     if lhs.ok != rhs.ok {return false}
     if lhs.code != rhs.code {return false}
+    if lhs.mime != rhs.mime {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -5245,7 +5335,7 @@ nonisolated extension Agent_V1_UploadFileResponse: SwiftProtobuf.Message, SwiftP
 
 nonisolated extension Agent_V1_IngestFileRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".IngestFileRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}code\0\u{1}data\0\u{1}name\0\u{1}mime\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}code\0\u{1}data\0\u{1}name\0\u{c}\u{4}\u{1}")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -5256,7 +5346,6 @@ nonisolated extension Agent_V1_IngestFileRequest: SwiftProtobuf.Message, SwiftPr
       case 1: try { try decoder.decodeSingularStringField(value: &self.code) }()
       case 2: try { try decoder.decodeSingularBytesField(value: &self.data) }()
       case 3: try { try decoder.decodeSingularStringField(value: &self.name) }()
-      case 4: try { try decoder.decodeSingularStringField(value: &self.mime) }()
       default: break
       }
     }
@@ -5272,9 +5361,6 @@ nonisolated extension Agent_V1_IngestFileRequest: SwiftProtobuf.Message, SwiftPr
     if !self.name.isEmpty {
       try visitor.visitSingularStringField(value: self.name, fieldNumber: 3)
     }
-    if !self.mime.isEmpty {
-      try visitor.visitSingularStringField(value: self.mime, fieldNumber: 4)
-    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -5282,7 +5368,6 @@ nonisolated extension Agent_V1_IngestFileRequest: SwiftProtobuf.Message, SwiftPr
     if lhs.code != rhs.code {return false}
     if lhs.data != rhs.data {return false}
     if lhs.name != rhs.name {return false}
-    if lhs.mime != rhs.mime {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -5290,7 +5375,7 @@ nonisolated extension Agent_V1_IngestFileRequest: SwiftProtobuf.Message, SwiftPr
 
 nonisolated extension Agent_V1_IngestFileResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".IngestFileResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}ok\0\u{1}code\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}ok\0\u{1}code\0\u{1}mime\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -5300,6 +5385,7 @@ nonisolated extension Agent_V1_IngestFileResponse: SwiftProtobuf.Message, SwiftP
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularBoolField(value: &self.ok) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.code) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.mime) }()
       default: break
       }
     }
@@ -5312,12 +5398,16 @@ nonisolated extension Agent_V1_IngestFileResponse: SwiftProtobuf.Message, SwiftP
     if !self.code.isEmpty {
       try visitor.visitSingularStringField(value: self.code, fieldNumber: 2)
     }
+    if !self.mime.isEmpty {
+      try visitor.visitSingularStringField(value: self.mime, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Agent_V1_IngestFileResponse, rhs: Agent_V1_IngestFileResponse) -> Bool {
     if lhs.ok != rhs.ok {return false}
     if lhs.code != rhs.code {return false}
+    if lhs.mime != rhs.mime {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -5425,7 +5515,7 @@ nonisolated extension Agent_V1_GetFileMetaRequest: SwiftProtobuf.Message, SwiftP
 
 nonisolated extension Agent_V1_GetFileMetaResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetFileMetaResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}mime\0\u{1}size\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}mime\0\u{1}size\0\u{1}width\0\u{1}height\0\u{3}duration_ms\0\u{3}thumb_code\0\u{1}thumbhash\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -5436,12 +5526,21 @@ nonisolated extension Agent_V1_GetFileMetaResponse: SwiftProtobuf.Message, Swift
       case 1: try { try decoder.decodeSingularStringField(value: &self.name) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.mime) }()
       case 3: try { try decoder.decodeSingularInt32Field(value: &self.size) }()
+      case 4: try { try decoder.decodeSingularInt32Field(value: &self._width) }()
+      case 5: try { try decoder.decodeSingularInt32Field(value: &self._height) }()
+      case 6: try { try decoder.decodeSingularInt64Field(value: &self._durationMs) }()
+      case 7: try { try decoder.decodeSingularStringField(value: &self._thumbCode) }()
+      case 8: try { try decoder.decodeSingularStringField(value: &self._thumbhash) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
     if !self.name.isEmpty {
       try visitor.visitSingularStringField(value: self.name, fieldNumber: 1)
     }
@@ -5451,6 +5550,21 @@ nonisolated extension Agent_V1_GetFileMetaResponse: SwiftProtobuf.Message, Swift
     if self.size != 0 {
       try visitor.visitSingularInt32Field(value: self.size, fieldNumber: 3)
     }
+    try { if let v = self._width {
+      try visitor.visitSingularInt32Field(value: v, fieldNumber: 4)
+    } }()
+    try { if let v = self._height {
+      try visitor.visitSingularInt32Field(value: v, fieldNumber: 5)
+    } }()
+    try { if let v = self._durationMs {
+      try visitor.visitSingularInt64Field(value: v, fieldNumber: 6)
+    } }()
+    try { if let v = self._thumbCode {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 7)
+    } }()
+    try { if let v = self._thumbhash {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 8)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -5458,6 +5572,56 @@ nonisolated extension Agent_V1_GetFileMetaResponse: SwiftProtobuf.Message, Swift
     if lhs.name != rhs.name {return false}
     if lhs.mime != rhs.mime {return false}
     if lhs.size != rhs.size {return false}
+    if lhs._width != rhs._width {return false}
+    if lhs._height != rhs._height {return false}
+    if lhs._durationMs != rhs._durationMs {return false}
+    if lhs._thumbCode != rhs._thumbCode {return false}
+    if lhs._thumbhash != rhs._thumbhash {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Agent_V1_FileChunk: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".FileChunk"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}data\0\u{1}offset\0\u{1}total\0\u{1}last\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBytesField(value: &self.data) }()
+      case 2: try { try decoder.decodeSingularUInt64Field(value: &self.offset) }()
+      case 3: try { try decoder.decodeSingularUInt64Field(value: &self.total) }()
+      case 4: try { try decoder.decodeSingularBoolField(value: &self.last) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.data.isEmpty {
+      try visitor.visitSingularBytesField(value: self.data, fieldNumber: 1)
+    }
+    if self.offset != 0 {
+      try visitor.visitSingularUInt64Field(value: self.offset, fieldNumber: 2)
+    }
+    if self.total != 0 {
+      try visitor.visitSingularUInt64Field(value: self.total, fieldNumber: 3)
+    }
+    if self.last != false {
+      try visitor.visitSingularBoolField(value: self.last, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Agent_V1_FileChunk, rhs: Agent_V1_FileChunk) -> Bool {
+    if lhs.data != rhs.data {return false}
+    if lhs.offset != rhs.offset {return false}
+    if lhs.total != rhs.total {return false}
+    if lhs.last != rhs.last {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

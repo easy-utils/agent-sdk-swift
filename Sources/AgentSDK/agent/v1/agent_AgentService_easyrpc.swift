@@ -308,6 +308,13 @@ public final class AgentServiceClient {
     return try decodeMsg(res.body, Agent_V1_GetFileMetaResponse.self, kind)
   }
 
+  public func getFileStream(req: Agent_V1_GetFileRequest, kind: String = "proto") async throws -> AsyncThrowingStream<Agent_V1_FileChunk, Error>
+  { AsyncThrowingStream { cont in Task { do { let ct = contentTypeFor(true, kind); let st = try await t.openStream(Request(url: "/agent.v1.AgentService/GetFileStream", headers: ["content-type": [ct]], body: frame(try encodeMsg(req, kind))))
+    self.lastStream = st
+    while let msg = await st.recv() { cont.yield(try decodeMsg(msg, Agent_V1_FileChunk.self, kind)) }
+    if let e = st.lastError() { throw e }
+    cont.finish() } catch { cont.finish(throwing: error) } } } }
+
   public func getAgentConfig(req: Agent_V1_GetAgentConfigRequest, kind: String = "proto") async throws -> Agent_V1_GetAgentConfigResponse {
     let ct = contentTypeFor(false, kind)
     let res = try await t.send(Request(url: "/agent.v1.AgentService/GetAgentConfig", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
