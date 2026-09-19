@@ -14,8 +14,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/easy-utils/easy-rpc-swift.git",
       "state" : {
-        "revision" : "828dae73f4f285e466819e509fd8b0298dd7b87f",
-        "version" : "0.4.0"
+        "revision" : "69f88de13251d716da891d9fc4dbafc79cae5d03",
+        "version" : "3.0.0"
       }
     },
     {

@@ -18,7 +18,7 @@ final class AuthTransport: Transport, @unchecked Sendable {
     private func headered(_ req: Request) -> Request {
         var h = req.headers
         h["Authorization"] = [value]
-        return Request(url: req.url, method: req.method, headers: h, body: req.body)
+        return Request(url: req.url, headers: h, body: req.body, cancelled: req.cancelled)
     }
 }
 
