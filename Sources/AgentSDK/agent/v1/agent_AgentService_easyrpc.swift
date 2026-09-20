@@ -15,6 +15,14 @@ public final class AgentServiceClient {
     return try decodeMsg(res.body, Agent_V1_HealthResponse.self, kind)
   }
 
+  public func getIdentity(req: Agent_V1_GetIdentityRequest, kind: String = "proto") async throws -> Agent_V1_GetIdentityResponse {
+    let ct = contentTypeFor(false, kind)
+    let res = try await t.send(Request(url: "/agent.v1.AgentService/GetIdentity", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
+    self.lastTrailers = res.trailers
+    if let e = res.error { throw e }
+    return try decodeMsg(res.body, Agent_V1_GetIdentityResponse.self, kind)
+  }
+
   public func listSessions(req: Agent_V1_ListSessionsRequest, kind: String = "proto") async throws -> Agent_V1_ListSessionsResponse {
     let ct = contentTypeFor(false, kind)
     let res = try await t.send(Request(url: "/agent.v1.AgentService/ListSessions", headers: ["content-type": [ct]], body: try encodeMsg(req, kind)))
