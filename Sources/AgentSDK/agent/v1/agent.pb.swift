@@ -187,6 +187,15 @@ public nonisolated struct Agent_V1_Message: Sendable {
 
   public var parts: [Agent_V1_Part] = []
 
+  /// ORIGIN of the message, when known. Empty for assistant/system rows the
+  /// agent authored itself. A user message carries the mailbox source it was
+  /// delivered with:
+  ///   `user`               — a human prompt (HTTP Prompt route)
+  ///   `session:{session}`  — another session (subsession-create / mail-send)
+  ///   `system:{name}`      — a system/automation source
+  ///   other                — extension-defined; clients degrade gracefully
+  public var source: String = String()
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -223,6 +232,8 @@ public nonisolated struct Agent_V1_MailboxEntry: Sendable {
 
   public var sessionName: String = String()
 
+  /// Message type: `trigger` (starts a turn), `interrupt`, or `event`
+  /// (folded into context only). Free-form on the wire.
   public var msgType: String = String()
 
   public var payload: String = String()
@@ -236,6 +247,14 @@ public nonisolated struct Agent_V1_MailboxEntry: Sendable {
   public var consumedAt: String = String()
 
   public var seq: Int64 = 0
+
+  /// ORIGIN of the message, so a consumer can tell a person's prompt from
+  /// another session's hand-off or a system event. Open string:
+  ///   `user`                 — a human prompt (HTTP Prompt route)
+  ///   `session:{session}`    — another session (subsession-create / mail-send)
+  ///   `system:{name}`        — a system/automation source
+  ///   other                  — extension-defined; consumers degrade gracefully
+  public var source: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -900,12 +919,22 @@ public nonisolated struct Agent_V1_StateResponse: Sendable {
   fileprivate var _state: SwiftProtobuf.Google_Protobuf_Struct? = nil
 }
 
+/// Mailbox listing is NEWEST-FIRST and paged BACKWARD (older) for infinite
+/// scroll: the client holds the newest page and passes the oldest entry it has
+/// as `before` to fetch the next-older page.
 public nonisolated struct Agent_V1_MailboxRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   public var id: String = String()
+
+  /// Max entries to return (0 => server default).
+  public var limit: Int32 = 0
+
+  /// Backward cursor (exclusive): return entries OLDER than this entry id.
+  /// Empty => the newest page.
+  public var before: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -920,6 +949,9 @@ public nonisolated struct Agent_V1_MailboxResponse: Sendable {
   public var ok: Bool = false
 
   public var mailbox: [Agent_V1_MailboxEntry] = []
+
+  /// True when more (older) entries exist beyond this page.
+  public var hasMore_p: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -2377,7 +2409,7 @@ nonisolated extension Agent_V1_Session: SwiftProtobuf.Message, SwiftProtobuf._Me
 
 nonisolated extension Agent_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Message"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}role\0\u{3}prev_id\0\u{3}created_at\0\u{1}parts\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}role\0\u{3}prev_id\0\u{3}created_at\0\u{1}parts\0\u{1}source\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2390,6 +2422,7 @@ nonisolated extension Agent_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._Me
       case 3: try { try decoder.decodeSingularStringField(value: &self.prevID) }()
       case 4: try { try decoder.decodeSingularStringField(value: &self.createdAt) }()
       case 5: try { try decoder.decodeRepeatedMessageField(value: &self.parts) }()
+      case 6: try { try decoder.decodeSingularStringField(value: &self.source) }()
       default: break
       }
     }
@@ -2411,6 +2444,9 @@ nonisolated extension Agent_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._Me
     if !self.parts.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.parts, fieldNumber: 5)
     }
+    if !self.source.isEmpty {
+      try visitor.visitSingularStringField(value: self.source, fieldNumber: 6)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -2420,6 +2456,7 @@ nonisolated extension Agent_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._Me
     if lhs.prevID != rhs.prevID {return false}
     if lhs.createdAt != rhs.createdAt {return false}
     if lhs.parts != rhs.parts {return false}
+    if lhs.source != rhs.source {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -2477,7 +2514,7 @@ nonisolated extension Agent_V1_Part: SwiftProtobuf.Message, SwiftProtobuf._Messa
 
 nonisolated extension Agent_V1_MailboxEntry: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".MailboxEntry"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}session_name\0\u{3}msg_type\0\u{1}payload\0\u{3}effective_at\0\u{1}status\0\u{3}created_at\0\u{3}consumed_at\0\u{1}seq\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}session_name\0\u{3}msg_type\0\u{1}payload\0\u{3}effective_at\0\u{1}status\0\u{3}created_at\0\u{3}consumed_at\0\u{1}seq\0\u{1}source\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2494,6 +2531,7 @@ nonisolated extension Agent_V1_MailboxEntry: SwiftProtobuf.Message, SwiftProtobu
       case 7: try { try decoder.decodeSingularStringField(value: &self.createdAt) }()
       case 8: try { try decoder.decodeSingularStringField(value: &self.consumedAt) }()
       case 9: try { try decoder.decodeSingularInt64Field(value: &self.seq) }()
+      case 10: try { try decoder.decodeSingularStringField(value: &self.source) }()
       default: break
       }
     }
@@ -2527,6 +2565,9 @@ nonisolated extension Agent_V1_MailboxEntry: SwiftProtobuf.Message, SwiftProtobu
     if self.seq != 0 {
       try visitor.visitSingularInt64Field(value: self.seq, fieldNumber: 9)
     }
+    if !self.source.isEmpty {
+      try visitor.visitSingularStringField(value: self.source, fieldNumber: 10)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -2540,6 +2581,7 @@ nonisolated extension Agent_V1_MailboxEntry: SwiftProtobuf.Message, SwiftProtobu
     if lhs.createdAt != rhs.createdAt {return false}
     if lhs.consumedAt != rhs.consumedAt {return false}
     if lhs.seq != rhs.seq {return false}
+    if lhs.source != rhs.source {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -3846,7 +3888,7 @@ nonisolated extension Agent_V1_StateResponse: SwiftProtobuf.Message, SwiftProtob
 
 nonisolated extension Agent_V1_MailboxRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".MailboxRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}limit\0\u{1}before\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -3855,6 +3897,8 @@ nonisolated extension Agent_V1_MailboxRequest: SwiftProtobuf.Message, SwiftProto
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.id) }()
+      case 2: try { try decoder.decodeSingularInt32Field(value: &self.limit) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.before) }()
       default: break
       }
     }
@@ -3864,11 +3908,19 @@ nonisolated extension Agent_V1_MailboxRequest: SwiftProtobuf.Message, SwiftProto
     if !self.id.isEmpty {
       try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
     }
+    if self.limit != 0 {
+      try visitor.visitSingularInt32Field(value: self.limit, fieldNumber: 2)
+    }
+    if !self.before.isEmpty {
+      try visitor.visitSingularStringField(value: self.before, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Agent_V1_MailboxRequest, rhs: Agent_V1_MailboxRequest) -> Bool {
     if lhs.id != rhs.id {return false}
+    if lhs.limit != rhs.limit {return false}
+    if lhs.before != rhs.before {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -3876,7 +3928,7 @@ nonisolated extension Agent_V1_MailboxRequest: SwiftProtobuf.Message, SwiftProto
 
 nonisolated extension Agent_V1_MailboxResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".MailboxResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}ok\0\u{1}mailbox\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}ok\0\u{1}mailbox\0\u{3}has_more\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -3886,6 +3938,7 @@ nonisolated extension Agent_V1_MailboxResponse: SwiftProtobuf.Message, SwiftProt
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularBoolField(value: &self.ok) }()
       case 2: try { try decoder.decodeRepeatedMessageField(value: &self.mailbox) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.hasMore_p) }()
       default: break
       }
     }
@@ -3898,12 +3951,16 @@ nonisolated extension Agent_V1_MailboxResponse: SwiftProtobuf.Message, SwiftProt
     if !self.mailbox.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.mailbox, fieldNumber: 2)
     }
+    if self.hasMore_p != false {
+      try visitor.visitSingularBoolField(value: self.hasMore_p, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Agent_V1_MailboxResponse, rhs: Agent_V1_MailboxResponse) -> Bool {
     if lhs.ok != rhs.ok {return false}
     if lhs.mailbox != rhs.mailbox {return false}
+    if lhs.hasMore_p != rhs.hasMore_p {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
